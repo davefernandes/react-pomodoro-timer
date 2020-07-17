@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>Pomodoro Timer</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" type="text/css" media="screen" href="main.css" />
+    <script src="https://unpkg.com/react@16/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+
+    <!-- Don't use this in production: -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script
+      src="https://use.fontawesome.com/releases/v5.13.0/js/all.js"
+      data-auto-replace-svg="nest"
+    ></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Pomodoro Timer</h1>
+      </div>
+      <div id="root"></div>
+    </div>
+    <script type="text/babel">
+      const _SESSION_VALUE = 1;
+      const initialValues = {
+        breakLength: 2,
+        sessionLength: _SESSION_VALUE,
+        timeCalc: _SESSION_VALUE * 60 * 1000,
+        timeLeft: (_SESSION_VALUE < 10 ? "0" : "") + _SESSION_VALUE + ":00",
+        isSessionRunning: true,
+        isClockOn: false,
+        endTime: new Date(Date.parse(new Date()) + 25 * 60 * 1000),
+        timeInterval: "",
+        timerStatus: "STOPPED",
+        timerLabel: "Session",
+        buttonText: "play",
+      };
+
+      class Clock extends React.Component {
+        constructor(props) {
+          super(props);
+          this.state = {
+            breakLength: initialValues.breakLength,
+            sessionLength: initialValues.sessionLength,
+            timeCalc: initialValues.timeCalc,
+            timeLeft: initialValues.timeLeft,
+            isSessionRunning: initialValues.isSessionRunning,
+            isClockOn: initialValues.isClockOn,
+            endTime: initialValues.endTime,
+            timeInterval: initialValues.timeInterval,
+            timerStatus: initialValues.timerStatus,
+            timerLabel: initialValues.timerLabel,
+            buttonText: initialValues.buttonText,
+          };
+
+          this.decrementBreak = this.decrementBreak.bind(this);
+          this.incrementBreak = this.incrementBreak.bind(this);
+          this.decrementSession = this.decrementSession.bind(this);
+          this.incrementSession = this.incrementSession.bind(this);
+          this.handleReset = this.handleReset.bind(this);
+          this.handleStartStop = this.handleStartStop.bind(this);
+          this.startClock = this.startClock.bind(this);
+          this.pauseClock = this.pauseClock.bind(this);
+          this.setEndTime = this.setEndTime.bind(this);
+          this.getTimeRemaining = this.getTimeRemaining.bind(this);
+          this.startCountDown = this.startCountDown.bind(this);
+          this.startNewCountDown = this.startNewCountDown.bind(this);
+          this.playBeep = this.playBeep.bind(this);
+        }
+
+        decrementBreak() {
+          if (this.state.breakLength > 1 && !this.state.isClockOn) {
+            let newLength = this.state.breakLength - 1;
+            this.setState({
+              breakLength: newLength,
+              timeLeft: this.state.isSessionRunning
+                ? this.state.timeLeft
+                : (newLength < 10 ? "0" : "") + newLength + ":00",
+              timeCalc: this.state.isSessionRunning
+                ? this.state.timeCalc
+                : newLength * 60 * 1000,
+            });
+          }
+        }
+        incrementBreak() {
+          if (this.state.breakLength < 60 && !this.state.isClockOn) {
+            let newLength = this.state.breakLength + 1;
+            this.setState({
+              breakLength: newLength,
+              timeLeft: this.state.isSessionRunning
+                ? this.state.timeLeft
+                : (newLength < 10 ? "0" : "") + newLength + ":00",
+              timeCalc: this.state.isSessionRunning
+                ? this.state.timeCalc
+                : newLength * 60 * 1000,
+            });
+          }
+        }
+        decrementSession() {
+          if (this.state.sessionLength > 1 && !this.state.isClockOn) {
+            let newLength = this.state.sessionLength - 1;
+            this.setState({
+              sessionLength: newLength,
+              timeLeft: !this.state.isSessionRunning
+                ? this.state.timeLeft
+                : (newLength < 10 ? "0" : "") + newLength + ":00",
+              timeCalc: !this.state.isSessionRunning
+                ? this.state.timeCalc
+                : newLength * 60 * 1000,
+            });
+          }
+        }
+        incrementSession() {
+          if (this.state.sessionLength < 60 && !this.state.isClockOn) {
+            let newLength = this.state.sessionLength + 1;
+            this.setState({
+              sessionLength: newLength,
+              timeLeft: !this.state.isSessionRunning
+                ? this.state.timeLeft
+                : (newLength < 10 ? "0" : "") + newLength + ":00",
+              timeCalc: !this.state.isSessionRunning
+                ? this.state.timeCalc
+                : newLength * 60 * 1000,
+            });
+          }
+        }
+
+        handleReset() {
+          clearInterval(this.state.timeInterval);
+          const theSoundClip = document.getElementById("beep");
+          theSoundClip.pause();
+          theSoundClip.currentTime = 0;
+          this.setState({
+            breakLength: initialValues.breakLength,
+            sessionLength: initialValues.sessionLength,
+            timeCalc: initialValues.timeCalc,
+            timeLeft: initialValues.timeLeft,
+            isSessionRunning: initialValues.isSessionRunning,
+            isClockOn: initialValues.isClockOn,
+            endTime: initialValues.endTime,
+            timeInterval: initialValues.timeInterval,
+            timerStatus: initialValues.timerStatus,
+            timerLabel: initialValues.timerLabel,
+            buttonText: initialValues.buttonText,
+          });
+        }
+
+        handleStartStop() {
+          if (this.state.isClockOn) {
+            this.setState({
+              isClockOn: false,
+              timerStatus: "PAUSED",
+              buttonText: "play",
+            });
+            this.pauseClock();
+          } else {
+            this.setState({
+              isClockOn: true,
+              timerStatus: "RUNNING",
+              buttonText: "pause",
+            });
+            this.setEndTime();
+            this.startClock();
+          }
+        }
+
+        setEndTime() {
+          this.setState({
+            endTime: new Date(Date.parse(new Date()) + this.state.timeCalc),
+          });
+        }
+
+        getTimeRemaining() {
+          const total = Date.parse(this.state.endTime) - Date.parse(new Date());
+          const minutes = Math.floor((total / 1000 / 60) % 60);
+          const seconds = Math.floor((total / 1000) % 60);
+          return { total, minutes, seconds };
+        }
+
+        startClock() {
+          this.setState({
+            timeInterval: setInterval(this.startCountDown, 1000),
+          });
+        }
+
+        startCountDown() {
+          let timerValue = this.getTimeRemaining();
+
+          if (timerValue.total <= 0) {
+            clearInterval(this.state.timeInterval);
+            this.playBeep();
+            if (this.state.isSessionRunning) {
+              this.setState({
+                timeLeft: "00:00",
+                timeCalc: 0,
+                timeInterval: "",
+                timerLabel: "Break",
+              });
+            } else {
+              this.setState({
+                timeLeft: "00:00",
+                timeCalc: 0,
+                timeInterval: "",
+                timerLabel: "Session",
+              });
+            }
+            setTimeout(this.startNewCountDown, 1000);
+          } else {
+            this.setState({
+              timeLeft:
+                (timerValue.minutes < 10 ? "0" : "") +
+                timerValue.minutes +
+                ":" +
+                (timerValue.seconds < 10 ? "0" : "") +
+                timerValue.seconds,
+            });
+          }
+        }
+
+        startNewCountDown() {
+          if (this.state.isSessionRunning) {
+            this.setState({
+              isSessionRunning: false,
+              timeLeft:
+                (this.state.breakLength < 10 ? "0" : "") +
+                this.state.breakLength +
+                ":00",
+              timeCalc: this.state.breakLength * 60 * 1000,
+              endTime: new Date(
+                Date.parse(new Date()) + this.state.breakLength * 60 * 1000
+              ),
+              timeInterval: setInterval(this.startCountDown, 1000),
+              timerLabel: "Break",
+            });
+          } else {
+            this.setState({
+              isSessionRunning: true,
+              timeLeft:
+                (this.state.sessionLength < 10 ? "0" : "") +
+                this.state.sessionLength +
+                ":00",
+              timeCalc: this.state.sessionLength * 60 * 1000,
+              endTime: new Date(
+                Date.parse(new Date()) + this.state.sessionLength * 60 * 1000
+              ),
+              timeInterval: setInterval(this.startCountDown, 1000),
+              timerLabel: "Session",
+            });
+          }
+        }
+
+        pauseClock() {
+          clearInterval(this.state.timeInterval);
+          this.setState({
+            timeCalc: this.getTimeRemaining().total,
+            timeInterval: "",
+          });
+        }
+
+        playBeep() {
+          const theSoundClip = document.getElementById("beep");
+          theSoundClip.currentTime = 0;
+          theSoundClip.play();
+          theSoundClip.addEventListener(
+            "timeupdate",
+            function () {
+              if (theSoundClip.currentTime >= 3) {
+                theSoundClip.pause();
+              }
+            },
+            false
+          );
+        }
+
+        render() {
+          return (
+            <div id="clock">
+              <div className="length">
+                <Break
+                  breakLength={this.state.breakLength}
+                  decrementBreak={this.decrementBreak}
+                  incrementBreak={this.incrementBreak}
+                />
+                <Session
+                  sessionLength={this.state.sessionLength}
+                  decrementSession={this.decrementSession}
+                  incrementSession={this.incrementSession}
+                />
+              </div>
+              <Timer
+                timeLeft={this.state.timeLeft}
+                timerLabel={this.state.timerLabel}
+              />
+              <Buttons
+                resetclick={this.handleReset}
+                startstop={this.handleStartStop}
+                timerStatus={this.state.timerStatus}
+                buttonText={this.state.buttonText}
+              />
+            </div>
+          );
+        }
+      }
+
+      class Break extends React.Component {
+        render() {
+          return (
+            <div className="break">
+              <div id="break-label">Break Length</div>
+
+              <div id="break-decrement" onClick={this.props.decrementBreak}>
+                <i className="fas fa-arrow-down"></i>
+              </div>
+              <div id="break-length">{this.props.breakLength}</div>
+              <div id="break-increment" onClick={this.props.incrementBreak}>
+                <i className="fas fa-arrow-up"></i>
+              </div>
+            </div>
+          );
+        }
+      }
+
+      class Session extends React.Component {
+        render() {
+          return (
+            <div className="session">
+              <div id="session-label">Session Length</div>
+
+              <div id="session-decrement" onClick={this.props.decrementSession}>
+                <i className="fas fa-arrow-down"></i>
+              </div>
+              <div id="session-length">{this.props.sessionLength}</div>
+              <div id="session-increment" onClick={this.props.incrementSession}>
+                <i className="fas fa-arrow-up"></i>
+              </div>
+            </div>
+          );
+        }
+      }
+
+      class Timer extends React.Component {
+        render() {
+          return (
+            <div className="timer">
+              <div id="countdown">
+                <div id="timer-label">{this.props.timerLabel}</div>
+                <div id="time-left">{this.props.timeLeft}</div>
+              </div>
+              <div className="audio-clip">
+                <audio
+                  id="beep"
+                  src="http://soundbible.com/mp3/House%20Fire%20Alarm-SoundBible.com-1609046789.mp3"
+                  type="audio/mp3"
+                />
+              </div>
+            </div>
+          );
+        }
+      }
+
+      class Buttons extends React.Component {
+        render() {
+          let buttonText = "fas fa-lg fa-" + this.props.buttonText + "-circle";
+          return (
+            <div className="buttons">
+              <div className="timer-status">{this.props.timerStatus}</div>
+              <div
+                className="start-stop"
+                id="start_stop"
+                onClick={this.props.startstop}
+              >
+                <i className={buttonText}></i>
+              </div>
+              <div className="reset" id="reset" onClick={this.props.resetclick}>
+                <i className="fab fa-rev fa-lg"></i>
+              </div>
+            </div>
+          );
+        }
+      }
+
+      ReactDOM.render(<Clock />, document.getElementById("root"));
+    </script>
+  </body>
+</html>
